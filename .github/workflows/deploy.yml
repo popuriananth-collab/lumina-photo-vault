@@ -155,12 +155,13 @@ jobs:
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          terraform apply \
-            -var="photos_bucket_name=${{ vars.PHOTOS_BUCKET_NAME }}" \
-            -var="secret_key=${{ secrets.SECRET_KEY }}" \
-            -var="image_tag=${{ needs.build.outputs.image_tag }}" \
-            -auto-approve \
-            -input=false
+            terraform apply \
+              -var="photos_bucket_name=${{ vars.PHOTOS_BUCKET_NAME }}" \
+              -var="secret_key=${{ secrets.SECRET_KEY }}" \
+              -var="image_tag=${{ needs.build.outputs.image_tag }}" \
+              -var="github_repo=${{ vars.GH_REPO }}" \
+              -var="tf_state_bucket=${{ vars.TF_STATE_BUCKET }}" \
+              -auto-approve -input=false
 
       - name: Get app URL
         id: url

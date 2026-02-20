@@ -97,8 +97,9 @@ jobs:
           terraform plan \
             -var="photos_bucket_name=${{ vars.PHOTOS_BUCKET_NAME }}" \
             -var="secret_key=${{ secrets.SECRET_KEY }}" \
-            -no-color \
-            -out=tfplan 2>&1 | tee plan_output.txt
+            -var="github_repo=${{ vars.GH_REPO }}" \
+            -var="tf_state_bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -no-color -out=tfplan 2>&1 | tee plan_output.txt
           echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
         continue-on-error: true
 
