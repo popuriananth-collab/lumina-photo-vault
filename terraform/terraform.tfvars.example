@@ -1,0 +1,19 @@
+# ─────────────────────────────────────────────
+#  terraform.tfvars — Your actual values
+#  Copy to terraform.tfvars and fill in.
+#  NEVER commit terraform.tfvars to Git!
+# ─────────────────────────────────────────────
+
+aws_region         = "us-east-1"
+app_name           = "lumina-photo-vault"
+photos_bucket_name = "lumina-photos-yourname-2024"   # globally unique
+environment        = "prod"
+
+# Your GitHub repo in org/repo format
+github_repo        = "yourname/lumina-photo-vault"
+
+# S3 bucket for Terraform remote state (create this manually first)
+tf_state_bucket    = "lumina-tf-state-yourname"
+
+# Generate: python -c "import secrets; print(secrets.token_hex(32))"
+secret_key         = "replace-with-a-random-secret"

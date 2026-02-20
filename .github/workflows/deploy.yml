@@ -1,0 +1,176 @@
+# ─────────────────────────────────────────────────────────────
+#  deploy.yml — Runs on push to main OR manual trigger
+#  Steps: Lint → Test → Docker build & push → Terraform apply
+# ─────────────────────────────────────────────────────────────
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (default: git SHA)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC
+
+env:
+  AWS_REGION:     ${{ vars.AWS_REGION }}
+  APP_NAME:       ${{ vars.APP_NAME }}
+  TF_WORKING_DIR: ./terraform
+
+jobs:
+
+  # ── Lint ──────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff
+        run: ruff check . --output-format=github
+
+  # ── Test ──────────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-cov
+
+      - name: Run tests
+        env:
+          S3_BUCKET_NAME: test-bucket
+          AWS_REGION: us-east-1
+          SECRET_KEY: test-secret-key
+        run: pytest tests/ -v --cov=app --cov-report=term-missing
+
+  # ── Build & Push Docker Image ─────────────────────────────
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+      image_uri: ${{ steps.meta.outputs.uri }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          # Use manual input tag if provided, otherwise short SHA
+          INPUT_TAG="${{ github.event.inputs.image_tag }}"
+          TAG="${INPUT_TAG:-${{ github.sha }}}"
+          SHORT_TAG="${TAG:0:7}"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_URI="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.APP_NAME }}"
+          echo "tag=${SHORT_TAG}" >> $GITHUB_OUTPUT
+          echo "uri=${ECR_URI}:${SHORT_TAG}" >> $GITHUB_OUTPUT
+          echo "ecr_uri=${ECR_URI}" >> $GITHUB_OUTPUT
+          echo "account_id=${ACCOUNT_ID}" >> $GITHUB_OUTPUT
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin \
+              ${{ steps.meta.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --tag ${{ steps.meta.outputs.uri }} \
+            --tag ${{ steps.meta.outputs.ecr_uri }}:latest \
+            --cache-from ${{ steps.meta.outputs.ecr_uri }}:latest \
+            .
+
+      - name: Push to ECR
+        run: |
+          docker push ${{ steps.meta.outputs.uri }}
+          docker push ${{ steps.meta.outputs.ecr_uri }}:latest
+
+      - name: Output summary
+        run: |
+          echo "### Docker Image" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`${{ steps.meta.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**URI:** \`${{ steps.meta.outputs.uri }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ── Terraform Apply ───────────────────────────────────────
+  deploy:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production  # requires manual approval if configured in GitHub
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.6'
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform apply \
+            -var="photos_bucket_name=${{ vars.PHOTOS_BUCKET_NAME }}" \
+            -var="secret_key=${{ secrets.SECRET_KEY }}" \
+            -var="image_tag=${{ needs.build.outputs.image_tag }}" \
+            -auto-approve \
+            -input=false
+
+      - name: Get app URL
+        id: url
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          URL=$(terraform output -raw app_url)
+          echo "url=${URL}" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        run: |
+          echo "### Deployment Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "**Image tag:** \`${{ needs.build.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Live URL:** ${{ steps.url.outputs.url }}" >> $GITHUB_STEP_SUMMARY

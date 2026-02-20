@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lumina — Albums</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#0c0c0d; --surface:#141416; --surface2:#1e1e21;
+      --border:#2a2a2e; --gold:#c8a96e; --gold-dim:#8a7048;
+      --text:#e8e4dc; --text-muted:#7a7670;
+      --danger:#c0504a; --success:#5a9a6a;
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; font-weight:300; min-height:100vh; }
+    body::before {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    }
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)}  to{opacity:1;transform:translateY(0)} }
+    @keyframes scaleIn  { from{opacity:0;transform:scale(0.95)}       to{opacity:1;transform:scale(1)} }
+    @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:0.25} }
+    @keyframes slideIn  { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+    header {
+      position:sticky; top:0; z-index:100;
+      background:rgba(12,12,13,0.92); backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border);
+      padding:0 2.5rem; display:flex; align-items:center; justify-content:space-between; height:64px;
+      animation:fadeDown 0.6s ease both;
+    }
+    .wordmark { font-family:'Cormorant Garamond',serif; font-size:1.7rem; font-weight:300; letter-spacing:0.12em; color:var(--gold); }
+    .wordmark em { color:var(--text-muted); font-style:italic; font-size:0.82rem; letter-spacing:0.05em; margin-left:0.5rem; }
+    .bucket-badge { display:inline-flex; align-items:center; gap:0.4rem; background:var(--surface2); border:1px solid var(--border); padding:0.3rem 0.75rem; font-size:0.68rem; color:var(--gold-dim); letter-spacing:0.1em; }
+    .bucket-badge::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--gold); animation:pulse 2s infinite; }
+
+    .flash-container { position:fixed; top:72px; right:1.5rem; z-index:200; display:flex; flex-direction:column; gap:0.5rem; max-width:340px; }
+    .flash { padding:0.75rem 1.1rem; font-size:0.72rem; letter-spacing:0.05em; border-left:3px solid; animation:slideIn 0.3s ease; }
+    .flash.success { background:rgba(90,154,106,0.12); border-color:var(--success); color:#8fcf9f; }
+    .flash.error   { background:rgba(192,80,74,0.12);  border-color:var(--danger);  color:#e08080; }
+    .flash.warning { background:rgba(184,144,58,0.12); border-color:#b8903a; color:#d4a84e; }
+
+    main { max-width:1400px; margin:0 auto; padding:3rem 2.5rem; position:relative; z-index:1; }
+    .section-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.25em; color:var(--gold-dim); margin-bottom:0.75rem; }
+    .page-header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:3rem; animation:fadeUp 0.6s 0.05s ease both; }
+    .page-title { font-family:'Cormorant Garamond',serif; font-size:2.8rem; font-weight:300; letter-spacing:0.04em; }
+    .album-meta { font-size:0.68rem; color:var(--text-muted); letter-spacing:0.12em; padding-bottom:0.4rem; }
+
+    .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:2rem; }
+
+    .album-card { display:block; text-decoration:none; color:inherit; animation:scaleIn 0.5s ease both; }
+    .album-card:nth-child(1){animation-delay:.05s} .album-card:nth-child(2){animation-delay:.10s}
+    .album-card:nth-child(3){animation-delay:.15s} .album-card:nth-child(4){animation-delay:.20s}
+    .album-card:nth-child(5){animation-delay:.25s} .album-card:nth-child(6){animation-delay:.30s}
+    .album-card:nth-child(7){animation-delay:.35s} .album-card:nth-child(8){animation-delay:.40s}
+
+    .album-cover { position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; background:var(--surface2); margin-bottom:0.85rem; }
+    .album-cover img { width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.88) saturate(0.8); transition:transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94),filter 0.35s; }
+    .album-card:hover .album-cover img { transform:scale(1.06); filter:brightness(1) saturate(1.05); }
+    .album-cover::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(200,169,110,0.1) 0%,transparent 60%); opacity:0; transition:opacity 0.35s; }
+    .album-card:hover .album-cover::after { opacity:1; }
+    .album-cover-empty { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:2.5rem; opacity:0.12; }
+    .album-count-badge { position:absolute; bottom:0.6rem; right:0.6rem; background:rgba(0,0,0,0.65); backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,0.08); font-size:0.6rem; color:rgba(255,255,255,0.55); letter-spacing:0.12em; padding:0.22rem 0.55rem; }
+
+    .album-label { display:flex; align-items:baseline; justify-content:space-between; }
+    .album-name { font-family:'Cormorant Garamond',serif; font-size:1.15rem; font-weight:300; color:var(--text); letter-spacing:0.04em; transition:color 0.2s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80%; }
+    .album-card:hover .album-name { color:var(--gold); }
+
+    .album-card.uncategorized .album-cover { border:1px dashed var(--border); }
+    .album-card.uncategorized .album-name  { font-style:italic; color:var(--text-muted); }
+
+    .empty-state { text-align:center; padding:7rem 2rem; border:1px dashed var(--border); }
+    .empty-icon  { font-size:3rem; opacity:0.15; margin-bottom:1.5rem; }
+    .empty-title { font-family:'Cormorant Garamond',serif; font-size:2rem; font-weight:300; color:var(--text-muted); margin-bottom:0.5rem; }
+    .empty-sub   { font-size:0.7rem; color:var(--text-muted); opacity:0.55; letter-spacing:0.08em; }
+  </style>
+</head>
+<body>
+
+<div class="flash-container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<header>
+  <div class="wordmark">LUMINA <em>photo vault</em></div>
+  <div class="bucket-badge">{{ bucket or 'not configured' }}</div>
+</header>
+
+<main>
+  <div class="page-header">
+    <div>
+      <div class="section-label">Library</div>
+      <div class="page-title">Albums</div>
+    </div>
+    <div class="album-meta">
+      {% if albums %}{{ albums|length }} album{{ 's' if albums|length != 1 }}{% endif %}
+    </div>
+  </div>
+
+  {% if albums %}
+  <div class="album-grid">
+    {% for album in albums %}
+    <a class="album-card {% if album.id == '__uncategorized__' %}uncategorized{% endif %}"
+       href="{{ url_for('album', album_id=album.id) }}">
+      <div class="album-cover">
+        {% if album.cover %}
+          <img src="{{ album.cover }}" alt="{{ album.name }}" loading="lazy"/>
+        {% else %}
+          <div class="album-cover-empty">◻</div>
+        {% endif %}
+        <div class="album-count-badge">{{ album.count }} photo{{ 's' if album.count != 1 }}</div>
+      </div>
+      <div class="album-label">
+        <div class="album-name">{{ album.name }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">⬡</div>
+    <div class="empty-title">No albums yet</div>
+    <div class="empty-sub">Create folders in your S3 bucket to organise photos into albums</div>
+  </div>
+  {% endif %}
+</main>
+
+<script>
+  setTimeout(() => {
+    document.querySelectorAll('.flash').forEach(el => {
+      el.style.transition = 'opacity 0.5s'; el.style.opacity = '0';
+      setTimeout(() => el.remove(), 500);
+    });
+  }, 4000);
+</script>
+</body>
+</html>
