@@ -16,7 +16,8 @@ def client():
     flask_app.config["TESTING"] = True
     flask_app.config["WTF_CSRF_ENABLED"] = False
     with flask_app.test_client() as client:
-        yield client
+        with patch("app.S3_BUCKET", "test-bucket"):
+            yield client
 
 
 # ── Helper to mock S3 responses ───────────────────────────────
@@ -148,7 +149,7 @@ class TestDelete:
         with patch("app.get_s3", return_value=mock_s3):
             resp = client.post("/delete/vacation-2024/beach.jpg")
         mock_s3.delete_object.assert_called_once_with(
-            Bucket="", Key="vacation-2024/beach.jpg"
+            Bucket="test-bucket", Key="vacation-2024/beach.jpg"
         )
         assert resp.status_code == 302
 
