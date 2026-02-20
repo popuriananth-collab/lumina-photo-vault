@@ -3,10 +3,10 @@ import mimetypes
 import os
 from collections import defaultdict
 
+import awsgi
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from flask import Flask, flash, redirect, render_template, request, send_file, url_for
-import awsgi
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
