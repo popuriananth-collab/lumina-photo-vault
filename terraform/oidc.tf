@@ -38,7 +38,6 @@ resource "aws_iam_role" "github_actions" {
   tags = local.common_tags
 }
 
-# What GitHub Actions is allowed to do
 resource "aws_iam_role_policy" "github_actions" {
   name = "${var.app_name}-github-actions-policy"
   role = aws_iam_role.github_actions.id
@@ -46,15 +45,13 @@ resource "aws_iam_role_policy" "github_actions" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # ECR — push images
+      # ECR
       {
-        Sid    = "ECRAuth"
-        Effect = "Allow"
-        Action = ["ecr:GetAuthorizationToken"]
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = "*"
       },
       {
-        Sid    = "ECRPush"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
@@ -65,13 +62,18 @@ resource "aws_iam_role_policy" "github_actions" {
           "ecr:CompleteLayerUpload",
           "ecr:PutImage",
           "ecr:DescribeRepositories",
-          "ecr:ListImages"
+          "ecr:ListImages",
+          "ecr:ListTagsForResource",
+          "ecr:TagResource",
+          "ecr:CreateRepository",
+          "ecr:DeleteRepository",
+          "ecr:PutLifecyclePolicy",
+          "ecr:GetLifecyclePolicy"
         ]
-        Resource = aws_ecr_repository.app.arn
+        Resource = "*"
       },
-      # Lambda — update function
+      # Lambda
       {
-        Sid    = "LambdaDeploy"
         Effect = "Allow"
         Action = [
           "lambda:UpdateFunctionCode",
@@ -81,70 +83,101 @@ resource "aws_iam_role_policy" "github_actions" {
           "lambda:DeleteFunction",
           "lambda:AddPermission",
           "lambda:RemovePermission",
-          "lambda:GetPolicy"
+          "lambda:GetPolicy",
+          "lambda:ListVersionsByFunction",
+          "lambda:GetFunctionConfiguration"
         ]
-        Resource = "arn:aws:lambda:${var.aws_region}:${local.account_id}:function:${var.app_name}"
-      },
-      # API Gateway — Terraform manages these
-      {
-        Sid    = "APIGateway"
-        Effect = "Allow"
-        Action = ["apigateway:*"]
         Resource = "*"
       },
-      # S3 — Terraform state bucket + photos bucket management
+      # API Gateway
       {
-        Sid    = "S3State"
+        Effect   = "Allow"
+        Action   = ["apigateway:*"]
+        Resource = "*"
+      },
+      # S3 state bucket
+      {
         Effect = "Allow"
-        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
         Resource = [
           "arn:aws:s3:::${var.tf_state_bucket}",
           "arn:aws:s3:::${var.tf_state_bucket}/*"
         ]
       },
+      # S3 photos bucket
       {
-        Sid    = "S3PhotosBucketManage"
         Effect = "Allow"
         Action = [
-          "s3:CreateBucket", "s3:DeleteBucket",
-          "s3:GetBucketVersioning", "s3:PutBucketVersioning",
-          "s3:GetBucketEncryption", "s3:PutBucketEncryption",
-          "s3:GetBucketPublicAccessBlock", "s3:PutBucketPublicAccessBlock",
-          "s3:GetBucketTagging", "s3:PutBucketTagging",
-          "s3:GetBucketPolicy", "s3:PutBucketPolicy", "s3:DeleteBucketPolicy"
+          "s3:CreateBucket",
+          "s3:DeleteBucket",
+          "s3:GetBucketVersioning",
+          "s3:PutBucketVersioning",
+          "s3:GetEncryptionConfiguration",
+          "s3:PutEncryptionConfiguration",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:PutBucketPublicAccessBlock",
+          "s3:GetBucketTagging",
+          "s3:PutBucketTagging",
+          "s3:GetBucketPolicy",
+          "s3:PutBucketPolicy",
+          "s3:DeleteBucketPolicy",
+          "s3:ListBucket",
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
         ]
-        Resource = "arn:aws:s3:::${var.photos_bucket_name}"
+        Resource = [
+          "arn:aws:s3:::${var.photos_bucket_name}",
+          "arn:aws:s3:::${var.photos_bucket_name}/*"
+        ]
       },
-      # IAM — Terraform manages roles
+      # IAM
       {
-        Sid    = "IAMRoles"
         Effect = "Allow"
         Action = [
-          "iam:CreateRole", "iam:DeleteRole",
-          "iam:GetRole", "iam:PassRole",
-          "iam:AttachRolePolicy", "iam:DetachRolePolicy",
-          "iam:PutRolePolicy", "iam:DeleteRolePolicy",
-          "iam:GetRolePolicy", "iam:ListRolePolicies",
-          "iam:ListAttachedRolePolicies", "iam:TagRole", "iam:UntagRole"
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:PassRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:GetOpenIDConnectProvider",
+          "iam:CreateOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:TagOpenIDConnectProvider"
         ]
-        Resource = "arn:aws:iam::${local.account_id}:role/${var.app_name}-*"
+        Resource = "*"
       },
       # CloudWatch Logs
       {
-        Sid    = "CloudWatchLogs"
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup", "logs:DeleteLogGroup",
-          "logs:DescribeLogGroups", "logs:PutRetentionPolicy",
-          "logs:TagResource", "logs:ListTagsLogGroup"
+          "logs:CreateLogGroup",
+          "logs:DeleteLogGroup",
+          "logs:DescribeLogGroups",
+          "logs:PutRetentionPolicy",
+          "logs:TagResource",
+          "logs:ListTagsLogGroup",
+          "logs:ListTagsForResource"
         ]
-        Resource = "arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:/aws/lambda/${var.app_name}*"
+        Resource = "*"
       },
-      # STS — needed for account ID lookup
+      # STS
       {
-        Sid    = "STSCallerIdentity"
-        Effect = "Allow"
-        Action = ["sts:GetCallerIdentity"]
+        Effect   = "Allow"
+        Action   = ["sts:GetCallerIdentity"]
         Resource = "*"
       }
     ]
