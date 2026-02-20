@@ -109,38 +109,10 @@ resource "aws_iam_role_policy" "github_actions" {
           "arn:aws:s3:::${var.tf_state_bucket}/*"
         ]
       },
-      # S3 photos bucket
+      # S3 photos bucket — full access
       {
-        Effect = "Allow"
-        Action = [
-          "s3:CreateBucket",
-          "s3:DeleteBucket",
-          "s3:GetBucketVersioning",
-          "s3:PutBucketVersioning",
-          "s3:GetEncryptionConfiguration",
-          "s3:PutEncryptionConfiguration",
-          "s3:GetBucketPublicAccessBlock",
-          "s3:PutBucketPublicAccessBlock",
-          "s3:GetBucketTagging",
-          "s3:PutBucketTagging",
-          "s3:GetBucketPolicy",
-          "s3:PutBucketPolicy",
-          "s3:DeleteBucketPolicy",
-          "s3:ListBucket",
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:GetBucketAcl",
-          "s3:PutBucketAcl",
-          "s3:GetBucketCORS",
-          "s3:PutBucketCORS",
-          "s3:GetBucketWebsite",
-          "s3:GetBucketRequestPayment",
-          "s3:GetBucketObjectLockConfiguration",
-          "s3:GetLifecycleConfiguration",
-          "s3:GetReplicationConfiguration",
-          "s3:GetBucketLocation"
-        ]
+        Effect   = "Allow"
+        Action   = ["s3:*"]
         Resource = [
           "arn:aws:s3:::${var.photos_bucket_name}",
           "arn:aws:s3:::${var.photos_bucket_name}/*"
