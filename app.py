@@ -6,7 +6,7 @@ from collections import defaultdict
 import awsgi
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
-from flask import Flask, flash, redirect, render_template, request, send_file, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -157,10 +157,12 @@ def album(album_id):
 def serve_photo(key):
     s3 = get_s3()
     try:
-        obj = s3.get_object(Bucket=S3_BUCKET, Key=key)
-        content_type = obj.get("ContentType") or mimetypes.guess_type(key)[0] or "image/jpeg"
-        return send_file(io.BytesIO(obj["Body"].read()),
-                         mimetype=content_type, as_attachment=False, download_name=key)
+        url = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": S3_BUCKET, "Key": key},
+            ExpiresIn=3600,
+        )
+        return redirect(url)
     except ClientError as e:
         return f"Error: {e.response['Error']['Message']}", 404
 
