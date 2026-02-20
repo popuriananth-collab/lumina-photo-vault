@@ -4,8 +4,10 @@ tests/test_app.py — Basic tests for Lumina Photo Vault
 Run with:  pytest tests/ -v --cov=app
 """
 import io
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from app import app as flask_app
 
 
