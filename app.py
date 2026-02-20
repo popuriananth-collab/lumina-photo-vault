@@ -24,7 +24,10 @@ def handler(event, context):
         event["httpMethod"] = http["method"]
         event["path"] = http["path"]
         event["queryStringParameters"] = event.get("queryStringParameters", {})
-    return awsgi.response(app, event, context, base64_content_types={"image/png", "image/jpeg", "image/webp", "image/gif"})
+    return awsgi.response(app, event, context, base64_content_types={   
+    "image/png", "image/jpeg", "image/jpg", "image/webp",
+    "image/gif", "image/bmp", "image/tiff", "image/svg+xml"
+    })
 
 
 def get_s3():
