@@ -18,7 +18,13 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "svg"}
 UNCATEGORIZED = "__uncategorized__"
 
 def handler(event, context):
-    return awsgi.response(app, event, context)
+    # API Gateway v2 sends a different event format — convert it to v1
+    if "requestContext" in event and "http" in event.get("requestContext", {}):
+        http = event["requestContext"]["http"]
+        event["httpMethod"] = http["method"]
+        event["path"] = http["path"]
+        event["queryStringParameters"] = event.get("queryStringParameters", {})
+    return awsgi.response(app, event, context, base64_content_types={"image/png", "image/jpeg", "image/webp", "image/gif"})
 
 
 def get_s3():
