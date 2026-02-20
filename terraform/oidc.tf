@@ -129,7 +129,17 @@ resource "aws_iam_role_policy" "github_actions" {
           "s3:ListBucket",
           "s3:GetObject",
           "s3:PutObject",
-          "s3:DeleteObject"
+          "s3:DeleteObject",
+          "s3:GetBucketAcl",
+          "s3:PutBucketAcl",
+          "s3:GetBucketCORS",
+          "s3:PutBucketCORS",
+          "s3:GetBucketWebsite",
+          "s3:GetBucketRequestPayment",
+          "s3:GetBucketObjectLockConfiguration",
+          "s3:GetLifecycleConfiguration",
+          "s3:GetReplicationConfiguration",
+          "s3:GetBucketLocation"
         ]
         Resource = [
           "arn:aws:s3:::${var.photos_bucket_name}",
@@ -174,6 +184,7 @@ resource "aws_iam_role_policy" "github_actions" {
         ]
         Resource = "*"
       },
+      
       # STS
       {
         Effect   = "Allow"
