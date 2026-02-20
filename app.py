@@ -6,7 +6,7 @@ from collections import defaultdict
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from flask import Flask, flash, redirect, render_template, request, send_file, url_for
-from mangum import Mangum
+import awsgi
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -17,7 +17,8 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "svg"}
 UNCATEGORIZED = "__uncategorized__"
 
-handler = Mangum(app, lifespan="off")
+def handler(event, context):
+    return awsgi.response(app, event, context)
 
 
 def get_s3():
