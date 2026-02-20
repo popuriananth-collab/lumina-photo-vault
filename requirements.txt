@@ -1,9 +1,9 @@
 # App
-flask>=3.0.0
+flask==3.0.0
 boto3>=1.34.0
-werkzeug>=3.0.0
+werkzeug==3.0.0
 python-dotenv>=1.0.0
-mangum==0.12.4
+aws-wsgi==0.2.7
 
 # Dev / CI
 pytest>=8.0.0
